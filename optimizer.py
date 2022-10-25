@@ -14,12 +14,11 @@ def get_optimizer(optimizer):
 
 # SGD 优化器
 class SGD(object):
-    def __init__(self, learning_rate=0.01) -> None:
+    def __init__(self, learning_rate=0.01):
         self.learning_rate = learning_rate
     
-    def update(self, params, grads):
-        for i in range(len(params)):
-            params[i] -= self.learning_rate * grads[i]
+    def update(self, param, grad, state=None):
+        return param - self.learning_rate * grad, state
 
     # 反向传播
     def backward(self, layers, delta):
@@ -42,38 +41,36 @@ class SGD(object):
         # return (y_hat - y) / (y_hat * (1 - y_hat) + 1e-9)
 
 class Momentum(object):
-    def __init__(self, learning_rate=0.01, momentum=0.9) -> None:
+    def __init__(self, learning_rate=0.01, momentum=0.9):
         self.learning_rate = learning_rate
         self.momentum = momentum
         self.v = None
     
-    def update(self, params, grads):
-        if self.v is None:
-            self.v = []
-            for param in params:
-                self.v.append(np.zeros_like(param))
-        for i in range(len(params)):
-            self.v[i] = self.momentum * self.v[i] - self.learning_rate * grads[i]
-            params[i] += self.v[i]
+    def update(self, param, grad, state=None):
+        if state is None:
+            state = np.zeros_like(param)
+        state = self.momentum * state - self.learning_rate * grad
+        return param + state, state
 
 class RMSProp(object):
-    def __init__(self, learning_rate=0.01, decay_rate=0.99, epsilon=1e-8) -> None:
+    def __init__(self, learning_rate=0.01, decay_rate=0.99, epsilon=1e-8):
         self.learning_rate = learning_rate
         self.decay_rate = decay_rate
         self.epsilon = epsilon
-        self.s = None
     
-    def update(self, params, grads):
-        if self.s is None:
-            self.s = []
-            for param in params:
-                self.s.append(np.zeros_like(param))
-        for i in range(len(params)):
-            self.s[i] = self.decay_rate * self.s[i] + (1 - self.decay_rate) * np.square(grads[i])
-            params[i] -= self.learning_rate * grads[i] / (np.sqrt(self.s[i]) + self.epsilon)
+    def update(self, param, grad, state=None):
+        if state is None:
+            state = np.zeros_like(param)
+        state = self.decay_rate * state + (1 - self.decay_rate) * np.square(grad)
+        return param - self.learning_rate * grad / (np.sqrt(state) + self.epsilon), state
+    
+    def backward(self, layers, delta):
+        for layer in layers[::-1]:
+            delta = layer.backward(delta)
+            layer.update(self)
 
 class Adam(object):
-    def __init__(self, learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1e-8) -> None:
+    def __init__(self, learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1e-8):
         self.learning_rate = learning_rate
         self.beta1 = beta1
         self.beta2 = beta2
@@ -84,15 +81,11 @@ class Adam(object):
     
     def update(self, params, grads):
         if self.m is None:
-            self.m = []
-            self.v = []
-            for param in params:
-                self.m.append(np.zeros_like(param))
-                self.v.append(np.zeros_like(param))
+            self.m = np.zeros_like(params)
+            self.v = np.zeros_like(params)
         self.t += 1
-        for i in range(len(params)):
-            self.m[i] = self.beta1 * self.m[i] + (1 - self.beta1) * grads[i]
-            self.v[i] = self.beta2 * self.v[i] + (1 - self.beta2) * np.square(grads[i])
-            m_hat = self.m[i] / (1 - np.power(self.beta1, self.t))
-            v_hat = self.v[i] / (1 - np.power(self.beta2, self.t))
-            params[i] -= self.learning_rate * m_hat / (np.sqrt(v_hat) + self.epsilon)
+        self.m = self.beta1 * self.m + (1 - self.beta1) * grads
+        self.v = self.beta2 * self.v + (1 - self.beta2) * grads**2
+        m_hat = self.m / (1 - self.beta1**self.t)
+        v_hat = self.v / (1 - self.beta2**self.t)
+        return params - self.learning_rate * m_hat / (np.sqrt(v_hat) + self.epsilon)

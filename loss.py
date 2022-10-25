@@ -17,7 +17,8 @@ class MSE(object):
 
 class CrossEntropy(object):
     def forward(self, y_hat, y):
-        return -np.mean(np.multiply(y, np.log(y_hat)) + np.multiply(1 - y, np.log(1 - y_hat)))
+        # 多分类交叉熵
+        return -np.sum(np.multiply(y, np.log(y_hat)))/y.shape[0]
     
     def backward(self, y_hat, y):
-        return (y_hat - y) / (y_hat * (1 - y_hat))
+        return -np.divide(y, y_hat) / y.shape[0]

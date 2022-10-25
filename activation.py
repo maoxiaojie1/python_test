@@ -48,7 +48,7 @@ class Softmax:
         前向传播
         """
         # 获取批量大小
-        batch_size = x.shape[0]
+        # batch_size = x.shape[0]
         # 获取输入数据的最大值
         c = np.max(x)
         # 计算指数
@@ -58,14 +58,24 @@ class Softmax:
         self.y = y
         return y
     
-    def backward(self, t):
+    def backward(self, delta):
         """
         反向传播
         """
         # 获取批量大小
-        batch_size = t.shape[0]
+        batch_size = delta.shape[0]
         # 计算梯度
-        dx = (self.y - t) / batch_size
+        dx = np.zeros_like(delta, dtype='float64')
+        for i in range(batch_size):
+            # 计算雅可比矩阵
+            jacobian_m = np.diag(self.y[i])
+            for j in range(jacobian_m.shape[0]):
+                for k in range(jacobian_m.shape[1]):
+                    if j == k:
+                        jacobian_m[j, k] = self.y[i, j] * (1 - self.y[i, k])
+                    else:
+                        jacobian_m[j, k] = -self.y[i, j] * self.y[i, k]
+            dx[i] = np.dot(jacobian_m, delta[i])
         return dx
     
     def __str__(self):

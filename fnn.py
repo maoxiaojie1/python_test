@@ -1,5 +1,6 @@
 import numpy as np
 from optimizer import SGD
+from loss import MSE, CrossEntropy
 
 # 前馈神经网络
 class FNN(object):
@@ -23,7 +24,9 @@ class FNN(object):
         return x
     
     # 训练函数
-    def fit(self, images, labels, num_iters, batch_size=256):  
+    def fit(self, images, labels, num_iters, batch_size=256):
+        # L = CrossEntropy()
+        L = MSE()
         # 生成shuffle后的batch
         batches = self.generate_batches(images, labels, batch_size)
         for i in range(num_iters):
@@ -32,9 +35,9 @@ class FNN(object):
                 # 前馈
                 y_hat = self.forward(images_batch)
                 # 计算损失
-                loss = self.optimizer.calc_loss(labels_batch, y_hat)
+                loss = L.forward(y_hat, labels_batch)
                 # 计算梯度
-                delta = self.optimizer.loss_grad(labels_batch, y_hat)
+                delta = L.backward(y_hat, labels_batch)
                 # 反向传播
                 self.optimizer.backward(self.layers, delta)
             # 预测
